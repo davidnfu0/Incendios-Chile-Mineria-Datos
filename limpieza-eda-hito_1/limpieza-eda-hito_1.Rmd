@@ -107,9 +107,8 @@ library(scales)
 ### Importar el dataset
 
 ```{r}
-ruta_datos <- "D:/drive/SB/2-Universidad/6-SextoSemestre/MineriaDatos_CC5205/MD_Proyecto/Data/" # Ruta de los datos
-nombre_archivo_data <- "data_incendios.csv" # Nombre del archivo
-data <- read.csv(file.path(ruta_datos, nombre_archivo_data), sep = "|")  # Se guarda el dataset en una variable llamada data
+url <- "https://raw.githubusercontent.com/davidnfu0/data-mining-en-incendios-de-Chile/main/data/data_incendios.csv" # Ruta de los datos
+data <- read.csv(url, sep = "|")  # Se guarda el dataset en una variable llamada data
 ```
 
 A continuación se muestra la clase asociada a cada atributo:

@@ -557,103 +557,6 @@ Tanto para el primer gráfico como para el segundo, los incendios siguen siendo 
 
 Resulta interesante conocer cómo se distribuyen los incendios a lo largo del país, es decir, ver cuáles son las regiones que tienen más incendios. Podemos ver también cómo ha cambiado la cantidad de incendios a lo largo del tiempo. Por otro lado, es importante ver también la cantidad de superficie quemada por los incendios y cómo esta ha ido evolucionando con el tiempo.
 
-#### Cantidad de incendios en cada Región
-
-Ahora se puede ver la cantidad de incendios que fueron registrados en cada región, para esto se van a mostrar los datos y también un gráfico de barras en el que se pueden ver la cantidad de incendios por región.
-
-```{r}
-# Crear la tabla de frecuencias
-region_table <- table(data$Region)
-
-# Formatear la tabla con kable y ajustes de formato
-library(knitr)
-kable(region_table, 
-      caption = "Frecuencias por Región",
-      col.names = c("Región", "Frecuencia"),
-      align = "c") 
-```
-
-Se crea un *dataframe* para colocar los datos y luego graficarlos.
-
-```{r}
-region.count <- as.data.frame(table(data$Region))
-colnames(region.count) <- c("Region", "Frecuencia")
-region.count <- region.count[order(-region.count$Frecuencia), ]
-head(region.count)
-```
-
-```{r}
-plot_ly(data = region.count, x = ~Region, y = ~Frecuencia, type = 'bar', marker = list(color = 'orange')) %>%
-  layout(
-    title = list(text = "Cantidad de incendios por Región", y = 0.96),
-    xaxis = list(
-      title = "Región",
-      tickvals = ~Region,
-      ticktext = ~Region,
-      tickangle = -45
-    ),
-    yaxis = list(title = "Frecuencia")
-  )
-```
-
-En lo anterior se puede apreciar que la región que presenta una mayor cantidad de incendios registrados es la región del Biobío, la cual presenta una cantidad mayor al doble de su antecesor, la región de la Araucanía. Por otro lado, las regiones de Coquimbo, Ñuble, Aysén, Magallanes, Atacama, Arica y Parinacota, Antofagasta y Tarapacá presentan una cantidad muy baja de incendios.
-
-Las regiones que parecen interesantes a estudiar son las regiones del Biobío y de la Araucania, ya que, estas son colindantes, son las dos con mayor cantidad de registros, además, ambas tienen una gran producción forestal y agrícola.
-
-Para entender de mejor manera la distribución geográfica de los datos, se presenta a continuación un mapa de calor que nos permite identificar aquellas zonas con mayor densidad de incendios, es decir, las zonas con una mayor cantidad de incendios por unidad de área.
-
-Se crea el *dataframe* con los atributos *Region*, *Temporada*, *Latitud* y *Longitud* de cada incendio:
-
-```{r}
-data.coords <- data.frame(Region=data$Region, Temporada=data$Temporada, Latitud=data$Latitud, Longitud=data$Longitud)
-```
-
-Se deben definir las zonas a graficar según las coordenadas geográficas.
-
-```{r}
-chile_bounds <- c(left = -80, bottom = -56, right = -65, top = -17)
-```
-
-```{r}
-heat.map <- function(df, map_bounds, zoom=7, type="toner-lite", title, xlab = xlab, ylab = ylab){
-  
-    coords.map <- get_stamenmap(map_bounds, zoom = zoom, maptype = type) 
-    
-    coords.map <- ggmap(coords.map, extent="device", legend="none")
-    
-    coords.map <- coords.map + stat_density_2d(data=df, aes(x=Longitud, y=Latitud, fill=after_stat(level), alpha=after_stat(level)), geom="polygon")
-    
-    coords.map <- coords.map + scale_fill_gradientn(colours=rev(brewer.pal(7, "Spectral")))
-    
-    coords.map <- coords.map + ggtitle(title) + xlab(xlab) + ylab(ylab) + theme_bw()
-
-    return(coords.map);
-}
-```
-
-Definimos las zonas de interés a graficar.
-
-```{r}
-valparaiso_bounds <- c(left = -72.3, bottom = -34.2, right = -69.8, top = -31.9)
-biobio_bounds <- c(left = -74, bottom = -39, right = -70.8, top = -36)
-```
-
-```{r}
-# print(heat.map(data.coords, zoom=4, chile_bounds, title="Densidad de Incendios en Chile", xlab="Longitud", ylab="Latitud"))
-```
-
-En particular, se puede notar que aquellas zonas donde más cantidad de incendios se producen son las regiones de Valparaíso, Biobío y Araucanía, lo cual se corresponde con lo mostrado en los gráficos anteriores.
-
-```{r, warning = FALSE}
-# print(heat.map(data.coords, zoom=8, valparaiso_bounds, title="Densidad de Incendios en Chile", xlab="Longitud", ylab="Latitud"))
-```
-
-```{r, warning = FALSE}
-# print(heat.map(data.coords, zoom=8, biobio_bounds, title="Densidad de Incendios en Chile", xlab="Longitud", ylab="Latitud"))
-```
-
-Al acercarse a estas regiones se puede ver con mayor claridad los lugares donde se han registrado la mayor cantidad de incendios. Para el caso de la región de Valparaíso, se evidencia una densidad de estos siniestros entre las ciudades de Valparaíso y Viña del Mar, concentrándose en los cerros que las rodean. Por otro lado, al sur del país, en las regiones del Biobío y la Araucanía, los incendios se concentran en los pueblos de Curanilahue, Tomé y Collipulli, las cuales son zonas de alta producción forestal.
-
 #### Cantidad de incendios por Temporada y Superficie Total Quemada
 
 A fin de estudiar la evolución de los incendios a lo largo de los años, se muestra a continuación un gráfico en el que se compara la cantidad de incendios por temporada y su relación con superficie quemada en la misma.
@@ -810,6 +713,103 @@ ggplot(data, aes(x = reorder(Causa, desc(SuperficieQuemadaTotal), sum), y = Supe
 ```
 
 De este gráfico se puede observar que los incendios forestales intencionales son aquellos con una mayor cantidad de superficie total quemada en hectáreas, esto se puede deber a diferentes factores. Luego, le siguen los incendios de causa desconocida.
+
+### Cantidad de incendios en cada Región
+
+Ahora se puede ver la cantidad de incendios que fueron registrados en cada región, para esto se van a mostrar los datos y también un gráfico de barras en el que se pueden ver la cantidad de incendios por región.
+
+```{r}
+# Crear la tabla de frecuencias
+region_table <- table(data$Region)
+
+# Formatear la tabla con kable y ajustes de formato
+library(knitr)
+kable(region_table, 
+      caption = "Frecuencias por Región",
+      col.names = c("Región", "Frecuencia"),
+      align = "c") 
+```
+
+Se crea un *dataframe* para colocar los datos y luego graficarlos.
+
+```{r}
+region.count <- as.data.frame(table(data$Region))
+colnames(region.count) <- c("Region", "Frecuencia")
+region.count <- region.count[order(-region.count$Frecuencia), ]
+head(region.count)
+```
+
+```{r}
+plot_ly(data = region.count, x = ~Region, y = ~Frecuencia, type = 'bar', marker = list(color = 'orange')) %>%
+  layout(
+    title = list(text = "Cantidad de incendios por Región", y = 0.96),
+    xaxis = list(
+      title = "Región",
+      tickvals = ~Region,
+      ticktext = ~Region,
+      tickangle = -45
+    ),
+    yaxis = list(title = "Frecuencia")
+  )
+```
+
+En lo anterior se puede apreciar que la región que presenta una mayor cantidad de incendios registrados es la región del Biobío, la cual presenta una cantidad mayor al doble de su antecesor, la región de la Araucanía. Por otro lado, las regiones de Coquimbo, Ñuble, Aysén, Magallanes, Atacama, Arica y Parinacota, Antofagasta y Tarapacá presentan una cantidad muy baja de incendios.
+
+Las regiones que parecen interesantes a estudiar son las regiones del Biobío y de la Araucania, ya que, estas son colindantes, son las dos con mayor cantidad de registros, además, ambas tienen una gran producción forestal y agrícola.
+
+Para entender de mejor manera la distribución geográfica de los datos, se presenta a continuación un mapa de calor que nos permite identificar aquellas zonas con mayor densidad de incendios, es decir, las zonas con una mayor cantidad de incendios por unidad de área.
+
+Se crea el *dataframe* con los atributos *Region*, *Temporada*, *Latitud* y *Longitud* de cada incendio:
+
+```{r}
+data.coords <- data.frame(Region=data$Region, Temporada=data$Temporada, Latitud=data$Latitud, Longitud=data$Longitud)
+```
+
+Se deben definir las zonas a graficar según las coordenadas geográficas.
+
+```{r}
+chile_bounds <- c(left = -80, bottom = -56, right = -65, top = -17)
+```
+
+```{r}
+heat.map <- function(df, map_bounds, zoom=7, type="toner-lite", title, xlab = xlab, ylab = ylab){
+  
+    coords.map <- get_stamenmap(map_bounds, zoom = zoom, maptype = type) 
+    
+    coords.map <- ggmap(coords.map, extent="device", legend="none")
+    
+    coords.map <- coords.map + stat_density_2d(data=df, aes(x=Longitud, y=Latitud, fill=after_stat(level), alpha=after_stat(level)), geom="polygon")
+    
+    coords.map <- coords.map + scale_fill_gradientn(colours=rev(brewer.pal(7, "Spectral")))
+    
+    coords.map <- coords.map + ggtitle(title) + xlab(xlab) + ylab(ylab) + theme_bw()
+
+    return(coords.map);
+}
+```
+
+Definimos las zonas de interés a graficar.
+
+```{r}
+valparaiso_bounds <- c(left = -72.3, bottom = -34.2, right = -69.8, top = -31.9)
+biobio_bounds <- c(left = -74, bottom = -39, right = -70.8, top = -36)
+```
+
+```{r}
+# print(heat.map(data.coords, zoom=4, chile_bounds, title="Densidad de Incendios en Chile", xlab="Longitud", ylab="Latitud"))
+```
+
+En particular, se puede notar que aquellas zonas donde más cantidad de incendios se producen son las regiones de Valparaíso, Biobío y Araucanía, lo cual se corresponde con lo mostrado en los gráficos anteriores.
+
+```{r, warning = FALSE}
+# print(heat.map(data.coords, zoom=8, valparaiso_bounds, title="Densidad de Incendios en Chile", xlab="Longitud", ylab="Latitud"))
+```
+
+```{r, warning = FALSE}
+# print(heat.map(data.coords, zoom=8, biobio_bounds, title="Densidad de Incendios en Chile", xlab="Longitud", ylab="Latitud"))
+```
+
+Al acercarse a estas regiones se puede ver con mayor claridad los lugares donde se han registrado la mayor cantidad de incendios. Para el caso de la región de Valparaíso, se evidencia una densidad de estos siniestros entre las ciudades de Valparaíso y Viña del Mar, concentrándose en los cerros que las rodean. Por otro lado, al sur del país, en las regiones del Biobío y la Araucanía, los incendios se concentran en los pueblos de Curanilahue, Tomé y Collipulli, las cuales son zonas de alta producción forestal.
 
 ## Aportes específicos de cada miembro Hito 1
 

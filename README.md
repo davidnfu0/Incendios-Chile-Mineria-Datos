@@ -1,6 +1,6 @@
 # Una exploración sobre los incendios en Chile
 
-Proyecto sobre los **Datos Históricos de Incendios en Chile** para el curso **Minería de Datos** (*CC5205*) de la Facultad de Ciencias Físicas y matemáticas de la **Universida de Chile**.
+Proyecto sobre los **Datos Históricos de Incendios en Chile** para el curso **Minería de Datos** (*CC5205*) de la Facultad de Ciencias Físicas y Matemáticas de la **Universida de Chile**.
 
 ___
 **Profesores:** Cinthia Sánchez Macías y Jazmine Maldonado.

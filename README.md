@@ -32,6 +32,22 @@ Los datos fueron obtenidos del sitio web: `www.plataformadedatos.cl`. Es una pla
 
 -   Los datos se pueden obtener en el siguiente enlace: [data](https://www.plataformadedatos.cl/catalog/categories/HAZARD/Incendio%20forestal/Registro%20hist%C3%B3rico%20de%20incendios).
 
--   Para un acceso directo a los datos dejamos el siguiente enlace: [data](https://drive.google.com/drive/folders/1_qQ7Ksplgtq99Ug_U1bv3zRp9sHkn6gf?usp=sharing)
+___
+
+### Preguntas de Investigación
+
+___
+1. ¿Es factible predecir la severidad de un incendio forestal en curso y determinar el nivel de alerta correspondiente basándose en sus características y factores actuales?
+___
+2. ¿Se pueden usar los registros existentes de incendios para identificar patrones y características predictivas que diferencien entre causas intencionales y no intencionales?
+___
+3. ¿Se pueden identificar grupos de incendios que compartan características similares, y estos grupos podrían proporcionarnos información valiosa para abordar eficazmente estas situaciones de emergencia?
+___
+
+## Metodología
+
+Estas preguntas se contestarán mediante la aplicación de técnicas de minería de datos, tales como:
+-  **Clustering:** Para identificar grupos de incendios que compartan características similares.
+-  **Clasificación:** Para predecir la severidad de un incendio forestal en curso y determinar el nivel de alerta correspondiente basándose en sus características y factores actuales.
 
 ___

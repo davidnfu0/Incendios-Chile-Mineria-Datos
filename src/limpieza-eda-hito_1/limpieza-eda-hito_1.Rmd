@@ -1,0 +1,828 @@
+---
+title: "Hito 1: Una exploración sobre los incencios en Chile"
+output: html_document
+date: "Septiembre 2023"
+author: "David Felipe, Cristian Jara, Alfredo Padilla, Gonzalo Serradilla y Pablo Vergara."
+---
+
+|                                                                                                 |
+|------------------------------------------------------------------------|
+| **Profesores:** Cinthia Sánchez Macías y Jazmine Maldonado.                                     |
+| **Auxiliares:** Fran Antonie Zautzik Rojas y María José Zambrano Burrows.                       |
+| **Curso:** Minería de Datos CC5205.                                                             |
+| **Grupo 11:** David Felipe, Cristian Jara, Alfredo Padilla, Gonzalo Serradilla y Pablo Vergara. |
+
+#  {.tabset}
+
+## Introducción y Motivación
+
+El conjunto de datos que analizaremos proviene del Instituto para la Resilencia ante Desastres y comprende los incendios forestales registrados por CONAF en el período que abarca desde 2002 hasta 2020. Este conjunto de datos nos proporciona una visión temporal de estos incidentes, ya que se encuentra organizado por temporadas. Además, ofrece información detallada sobre cada evento, incluyendo su ubicación geográfica, la extensión de vegetación afectada, la causa del incendio, el nivel de alerta emitido y la duración de cada incidente.
+
+Los incendios forestales han sido un problema que ha afectado a nuestro país durante años, siendo una de las grandes problemáticas de cada verano en el país, por lo que una buena compresión e interpretación de los datos puede ser muy provechosa para contribuir al desarrollo de estrategias efectivas de manejo ambiental y de seguridad.
+
+**Variables del Dataset:**
+
+-   **Ubicación:** Región, Provincia y Comuna, además de Latitud, Longitud y el Datum del punto de ignición estimado.
+
+-   **Fecha:** Temporada, Fecha, Hora de inicio y Duración (en minutos) del incendio.
+
+-   **Información del evento:** Nombre, Alerta Emitida, Escenario y Causa.
+
+-   **Superficie quemada (en hectáreas):** Pino A, Pino B, Pino C, Eucalipto, Otras plantas, Arbolado, Matorral, Pastizal, Agrícola, Desechos y Total.
+
+-   **Escenarios:** Variable que indica el tipo de escenario en que se desarrolló el incendio.
+
+**Obtención de los datos:**
+
+Los datos fueron obtenidos del sitio web: `www.plataformadedatos.cl`. Es una plataforma de acceso libre, que entre otras cosas, entrega datos sobre desastres socio naturales como los incendios. Esta plataforma es impulsada principalmente por la *CORFO*, el *Ministerio del Interior y Seguridad Pública* y el **CTCI**.
+
+-   Los datos se pueden obtener en el siguiente enlace: [data](https://www.plataformadedatos.cl/catalog/categories/HAZARD/Incendio%20forestal/Registro%20hist%C3%B3rico%20de%20incendios).
+
+-   Para un acceso directo a los datos dejamos el siguiente enlace: [data](https://drive.google.com/drive/folders/1_qQ7Ksplgtq99Ug_U1bv3zRp9sHkn6gf?usp=sharing).
+
+## Preliminares
+
+Se limpia el entorno de trabajo.
+
+```{r, include=FALSE}
+rm(list=ls())         # Limpia la lista de objetos 
+graphics.off()        # Limpia la lista de gráficos
+options(digits = 5)   # Número de dígitos a utilizar
+```
+
+### Importar librerías fundamentales para el trabajo
+
+```{r, include=FALSE}
+if (!require(dplyr)) {
+  install.packages("dplyr")
+}
+library(dplyr)
+
+if (!require(ggplot2)) {
+  install.packages("ggplot2")
+}
+library(ggplot2)
+
+if (!require(plotly)) {
+  install.packages("plotly")
+}
+library(plotly)
+
+if (!require(lubridate)) {
+  install.packages("lubridate")
+}
+library(lubridate)
+
+if (!require("DataExplorer")) {
+  install.packages("DataExplorer")
+}
+library("DataExplorer")
+
+if (!require("corrplot")) {
+  install.packages("corrplot")
+}
+library("corrplot")
+
+if (!require(viridis)) {
+  install.packages("viridis")
+}
+library(viridis)
+
+if (!require(ggmap)) {
+  install.packages("ggmap")
+}
+library(ggmap)
+
+if (!require(RColorBrewer)) {
+  install.packages("RColorBrewer")
+}
+library(RColorBrewer)
+
+if (!require(scales)) {
+  install.packages("scales")
+}
+library(scales)
+```
+
+### Importar el dataset
+
+```{r}
+url <- "https://raw.githubusercontent.com/davidnfu0/data-mining-en-incendios-de-Chile/main/data/data_incendios.csv" # Ruta de los datos
+data <- read.csv(url, sep = "|")  # Se guarda el dataset en una variable llamada data
+```
+
+A continuación se muestra la clase asociada a cada atributo:
+
+```{r}
+sapply(data, class)
+```
+
+Se convierten las variables *categóricas* a *factor*:
+
+```{r}
+data$Alerta <- as.factor(data$Alerta)
+data$Causa <- as.factor(data$Causa)
+data$Escenario <- as.factor(data$Escenario)
+```
+
+### Cambiar el nombre de las columnas
+
+Se renombran las columnas para trabajar de manera más cómoda y con nombres más intuitivos:
+
+```{r}
+colnames(data) <- c(
+  "Region", "Provincia", "Comuna", "Temporada", "Nombre", 
+  "Fecha", "HoraInicio", "DuracionMinutos", "Alerta", "Escenario", 
+  "Causa", "SuperficieQuemadaPinoA", "SuperficieQuemadaPinoB", 
+  "SuperficieQuemadaPinoC", "SuperficieQuemadaEucalipto", 
+  "SuperficieQuemadaOtrasPlantas", "SuperficieQuemadaArbolado", 
+  "SuperficieQuemadaMatorral", "SuperficieQuemadaPastizal", 
+  "SuperficieQuemadaAgricola", "SuperficieQuemadaDesechos", 
+  "SuperficieQuemadaTotal", "Latitud", "Longitud", "Datum")
+```
+
+```{r}
+head(data)
+```
+
+### Primera vista del dataset
+
+Para comenzar, es importante conocer las dimensiones del conjunto de datos sobre el que se va a trabajar.
+
+```{r}
+dim(data)
+```
+
+Con los valores anteriores se puede afirmar que el *dataset* posee 109985 registros de incendios descritos en 25 atributos.
+
+```{r}
+summary(data)
+```
+
+Se puede observar que existen registros asociados a la variable *DuracionMinutos* con valores negativos, por lo que antes de comenzar con el análisis en profundidad es necesario estudiar estos datos y realizar la limpieza correspondiente.
+
+### Creación de nuevos atributos
+
+Se unirán las columnas que indican la superficie quemada de pino A, B y C, pues, por ahora resulta más útil y sencillo trabajar solo con la superficie quemada total de pino y no hacer diferencia entre las distintas variedades de este árbol.
+
+```{r}
+# Se crea la nueva columna que almacena la suma de las otras tres.
+data$SuperficieQuemadaPino <- data$SuperficieQuemadaPinoA + data$SuperficieQuemadaPinoB + data$SuperficieQuemadaPinoC
+
+# Se eliminan las columnas especificas que contienen la superficie quemada de pino A, B y C. Para dejar solamente la superficie quemada total del pino.
+data$SuperficieQuemadaPinoA <- NULL
+data$SuperficieQuemadaPinoB <- NULL
+data$SuperficieQuemadaPinoC <- NULL
+```
+
+Se crearán tres nuevas columnas para indicar el día de la semana, el mes y el año de ocurrencia de cada incendio. Esto con el propósito de realizar análisis con diferentes niveles de precisión sobre el *dataset*.
+
+```{r}
+# Se convierte la columna Fecha a tipo fecha
+data$Fecha <- as.Date(data$Fecha, format="%Y-%m-%d")
+
+# Se crean las nuevas columnas que almacena los nuevos valores 
+data$DiaSemana <- weekdays(data$Fecha)
+data$Mes <- months(data$Fecha)
+data$Anho <- year(data$Fecha)
+```
+
+```{r}
+head(data)
+```
+
+### Revisión de NA
+
+Es importante conocer si el *dataset* posee datos faltantes (**NA's**), para poder tratar con ellos y no tener dificultades a la hora de realizar el análisis.
+
+```{r}
+sum(is.na(data))
+```
+
+No hay ningún valor faltante. Por lo tanto, no es necesario realizar ningún tratamiento especial para lidiar con estos atributos.
+
+### Revisión de datos duplicados
+
+Es fundamental estudiar las filas duplicadas del *dataset*, estas nos pueden llevar a considerar dos veces el mismo evento, y por consecuencia, afectar el análisis que se haga sobre los datos. Para determinar si dos registros están duplicados se van a considerar aquellas filas que tengan la misma *Comuna*, *Fecha*, *HoraInicio*, *Latitud* y *Longitud*.
+
+```{r}
+cat('Total de registros duplicados: ', 
+    sum(duplicated(data[, c('Comuna','Fecha','HoraInicio','Latitud','Longitud')])))
+
+```
+
+Se opta por mantener solo los registros que no estén duplicados.
+
+```{r}
+data <- data[!(duplicated(data[, c('Comuna','Fecha','HoraInicio','Latitud','Longitud')])),]
+```
+
+### Datos con duración en minutos negativa y nula
+
+Se trabajaran aquellos registros que tienen una duración en minutos negativa o nula:
+
+```{r}
+data.duracion.negativa <- data[data$DuracionMinutos < 0, ]
+cat("Total de registros con duración en minutos negativa:",nrow(data.duracion.negativa))
+
+```
+
+```{r}
+unique(data.duracion.negativa$DuracionMinutos)
+```
+
+Todos los valores que poseen una duración negativa tienen asignado el valor $-1000000$.
+
+```{r}
+data.duracion.nula <- data[data$DuracionMinutos == 0, ]
+cat("Total de registros con duración en minutos nula:",nrow(data.duracion.nula))
+```
+
+También existen registros con duración nula.
+
+En esta parte del estudio no se van a considerar ni los registros que tiene duración negativa ni los datos que tienen duración nula.
+
+```{r}
+data <- data[data$DuracionMinutos > 0, ]
+```
+
+```{r}
+write.table(x = data, file = "data_limpio.csv", sep = ",", 
+            row.names = FALSE, col.names = TRUE)
+```
+
+## Análisis exploratorio de datos
+
+### Análisis general
+
+Se puede observar como quedó el *dataset* después de las modificaciones, en sus aspectos generales:
+
+```{r}
+dim(data)
+```
+
+```{r}
+summary(data)
+```
+
+```{r}
+head(data)
+```
+
+### Correlación entre variables
+
+Para poder conocer cómo se relacionan entre sí las variables se generará una matriz de correlación.
+
+```{r}
+# Calcular la matriz de correlación
+correlation_matrix <- cor(data[sapply(data, is.numeric)])
+
+
+# Crear una representación visual de la matriz de correlación con cuadrículas y colores mejorados
+corrplot(
+  correlation_matrix,
+  method = "color",  # Método de representación
+  type = "upper", # Mostrar solo la mitad superior de la matriz
+  order = "hclust",  # Ordenar las variables jerárquicamente
+  tl.col = "black",  # Color de las etiquetas
+  tl.srt = 45, # Ángulo de rotación de las etiquetas
+  tl.cex = 0.7,
+  addgrid.col = "gray",  # Color de las cuadrículas
+  col = colorRampPalette(c("white", "#ca6702"))(100),  # Esquema de colores
+  bg = "white", # Color de fondo
+)
+```
+
+A partir de la matriz de correlación es posible observar que las columnas más relacionadas son aquellas que representan las distintas superficies quemadas.
+
+### Distribución de las causas de los incendios y de los Tipos de Alerta.
+
+#### Frecuencia de las Alertas establecidas en lo incendios.
+
+La alerta es un atributo importante, pues, de alguna manera "cuantifica" la gravedad de un incendio. También, presentan información crucial sobre la evolución de un incendio. Estas se dividen en dos:
+
+1.  **Alerta amarilla**: Se establece cuando un incendio crece en extensión y severidad. La amenaza no puede ser tratada con recursos locales y habituales.
+
+2.  **Alerta roja**: Se establece cuando un incendio ha crecido mucho en extensión y magnitud y requiere movilización de recursos inmediata para combatir la amenaza.
+
+[(Fuente)](https://www.camara.cl/verDoc.aspx?prmID=122250&prmTIPO=DOCUMENTOCOMISION)
+
+A continuación se muestran los datos de la cantidad de incendios para los que se estableció cada tipo de alerta, seguido de un gráfico tipo **donut** *interactivo*:
+
+```{r}
+# Crear la tabla de frecuencias
+alerta_table <- table(data$Alerta)
+
+# Formatear la tabla con kable y ajustes de formato
+library(knitr)
+kable(alerta_table, 
+      caption = "Frecuencias de cada Alerta",
+      col.names = c("Alerta", "Frecuencia"),
+      align = "c")
+```
+
+Se crea un *dataframe* para poder gráficar los datos:
+
+```{r}
+alerta.count <- as.data.frame(table(data$Alerta))
+colnames(alerta.count) <- c("Alerta", "Frecuencia")
+```
+
+```{r}
+plot_ly(alerta.count, 
+        labels = ~Alerta, # Etiquetas se toman de la columna "Alerta"
+        values = ~Frecuencia, # Valores se toman de la columna "Frecuencia"
+        textposition = 'outside',
+        textinfo = 'label+percent',
+        type = "pie", # Gráfico donut
+        hole = 0.6, # Tamaño del agujero en el centro
+        marker = list(colors = list("yellow", "red", "grey"),
+                      # Colores de las secciones
+                      line = list(color = '#000', width = 0.3) # Color y ancho del borde
+                     )
+)%>%
+# Configuración del diseño del gráfico
+layout(
+    title = list(text = "Proporciones y Frecuencias de los Tipos de Alerta para incendios en Chile",
+                 x = 0.5,  # Posición horizontal del título
+                 y = 0.97  # Posición vertical del título
+                ),
+    showlegend = TRUE,  # Mostrar la leyenda
+    legend = list(x = 0.8, y = 0.6, font = list(size = 14)),  # Posición y estilo de la leyenda
+    margin = list(l = -1, r = -1, b = -1, t = -1)  # Configuración de los márgenes del gráfico
+)
+
+```
+
+Podemos notar que el $99\%$ de los registros no tienen alerta. Sin embargo, del $1\%$ de los registros que tiene alerta, se puede notar hay más del doble de **alertas rojas** que de **alertas amarillas**. Lo que indica que, si bien la mayoría de los incendios no pasa a una "gravedad" mayor, los que si pasan a tener una extensión y magnitud considerable tienden a ser **alerta roja**.
+
+#### Duración de los incendios según el Tipo de Alerta
+
+Se puede conocer como se compara la duración promedio de los incendios con el tipo de alerta emitida. A continuación se muestra un gráfico de **cajas** *interactivo* para ver como se diferencia la duración en minutos de un incendio en relación con el tipo alerta emitida.
+
+```{r}
+plot_ly(
+  data = data,
+  x = ~Alerta,
+  y = ~DuracionMinutos,
+  type = "box"
+)%>%
+  layout(
+  title = list(text = "Boxplot Duración en minutos vs Alerta emitida", x = 0.5, y = 0.96),
+  xaxis = list(title = "Alerta"),
+  yaxis = list(title = "Duración (minutos)"),
+  showlegend = FALSE)
+```
+
+Se puede ver como los incendios que tienen alerta, ya sea amarilla o roja, poseen un mayor valor para cada cuartil de la duración en minutos, en comparación a los incendios donde no se emitió alerta. Sin embargo, no existe una gran diferencia entre los incendios a los que se les emitió alerta roja y amarilla. Lo que puede indicar que no existe una gran relación entre el tipo de alerta emitida y la duración de los incendios en minutos, de hecho, la mediana de la duración de los incendios de alerta amarilla es mayor a la de los incendios con alerta roja.
+
+Ahora, también es interesante conocer la media de la duración en minutos según la alerta emitida:
+
+```{r}
+cat("Promedio de la duración en minutos de los incendios con alerta amarilla: ", 
+    mean(data[data$Alerta == "Alerta amarilla", ]$DuracionMinutos))
+```
+
+```{r}
+cat("Promedio de la duración en minutos de los incendios con alerta roja: ", 
+    mean(data[data$Alerta == "Alerta roja", ]$DuracionMinutos))
+```
+
+Se puede notar que se obtienen valores bastante similares y que concuerdan con lo obtenido anteriormente.
+
+Es importante notar también que hay incendios que obtuvieron alerta amarilla y roja, pero su duración en minutos fue de $1$ o $2$ minutos, lo que puede indicar que estos valores están errados.
+
+Por otro lado, también es importante analizar el tipo de alerta y la cantidad de metros cuadrados totales quemados:
+
+*Comentario*: Con objetivo de mejorar la visualización de los datos se va a utilizar el *eje y* en escala logarítmica.
+
+```{r}
+plot_ly(
+  data = data,
+  x = ~Alerta,
+  y = ~SuperficieQuemadaTotal*10000,
+  type = "box"
+)%>%
+  layout(
+  title = list(text = "Superficie total quemada vs Alerta emitida", x = 0.5, y = 0.96),
+  xaxis = list(title = "Alerta"),
+  yaxis = list(title = "Superficie total quemada (m2)", type = "log"),
+  showlegend = FALSE)
+```
+
+De esto es posible observar que los incendios catalogados con alerta roja son los que tienen una mayor superficie quemada, pero también es importante notar que hay incendios sin alerta que tienen una gran superficie quemada.
+
+También, es interesante conocer la media de la superficie total quemada según alerta emitida:
+
+```{r}
+cat("Promedio de la superficie quemada en hectáreas de los incendios con alerta amarilla: ", 
+    mean(data[data$Alerta == "Alerta amarilla", ]$SuperficieQuemadaTotal))
+```
+
+```{r}
+
+cat("Promedio de la superficie quemada en hectáreas de los incendios con alerta roja: ", 
+    mean(data[data$Alerta == "Alerta roja", ]$SuperficieQuemadaTotal))
+```
+
+El promedio de hectáreas de los incendios de alerta roja es mucho mayor a los de alerta amarilla.
+
+#### Frecuencia de las Causas de los incendios.
+
+La causa de un incendio es un factor muy importante para entender cómo se originan los incendios y en un futuro poder hablar de estrategias preventivas.
+
+A continuación se muestran los datos de la frecuencia de todas las causas de los incendios, para ello también se van a mostrar gráficos de tipo **donut**.
+
+```{r}
+# Crear la tabla de frecuencias
+causa_table <- table(data$Causa)
+
+# Formatear la tabla con kable y ajustes de formato
+library(knitr)
+kable(causa_table, 
+      caption = "Frecuencias de cada Causa",
+      col.names = c("Causa", "Frecuencia"),
+      align = "c")
+```
+
+Se crea un *dataframe* para hacer los gráficos:
+
+```{r}
+causa.count <- as.data.frame(table(data$Causa))
+colnames(causa.count) <- c("Causa", "Frecuencia")
+```
+
+```{r}
+# Calcula el porcentaje de cada categoría
+causa.count <- causa.count %>%
+  mutate(Percent = Frecuencia / sum(Frecuencia) * 100)
+
+# Define un umbral para mostrar las etiquetas en la leyenda
+umbral <- 2
+
+# Crea el gráfico de pastel
+plot_ly(causa.count, 
+        labels = ~Causa, 
+        values = ~Frecuencia,
+        textinfo = "percent",
+        type = "pie",
+        hole = 0.6,
+        marker = list(line = list(color = '#000', width = 0.3))) %>%
+  layout(title = list(text = "Distribucion de la Causa de los Incendios",
+                      x = 0.5,
+                      y = 0.97),
+         showlegend = TRUE,  # Muestra la leyenda
+         legend = list(x = 0.85, y = 0.5, font = list(size = 7)),  # Posición de la leyenda
+         margin = list(l = 0.5, r = 0, b = -1, t = -1))
+
+```
+
+A partir del gráfico anterior se puede apreciar que, aproximadamente, el $64\%$ de los incendios son intencionales o a causa de tránsito de personas, vehículos o aeronaves. Además, se puede ver que, aproximadamente, el $9\%$ de los incendios tiene una causa aún desconocida.
+
+Ahora, es interesante ver cuáles fueron las principales causas de los incendios según el tipo de alerta. En particular, nos interesa estudiar las causas de los incendios para los cuales se emitió un alerta, pues estos corresponden a aquellos que tuvieron una mayor magnitud. Para esto se van a mostrar tres gráficos de tipo **donut**, del mismo estilo que el gráfico anterior.
+
+Se crean los *dataframe* para hacer los gráficos.
+
+```{r}
+alerta.roja.causa.count <- as.data.frame(table(data[data$Alerta == "Alerta roja", ]$Causa))
+colnames(alerta.roja.causa.count) <- c("Causa", "Frecuencia")
+
+alerta.amarilla.causa.count <- as.data.frame(table(data[data$Alerta == "Alerta amarilla", ]$Causa))
+colnames(alerta.amarilla.causa.count) <- c("Causa", "Frecuencia")
+
+sin.alerta.causa.count <- as.data.frame(table(data[data$Alerta == "Sin alerta", ]$Causa))
+colnames(sin.alerta.causa.count) <- c("Causa", "Frecuencia")
+```
+
+```{r}
+pie.alerta.roja <- plot_ly(alerta.roja.causa.count, 
+        labels = ~Causa, 
+        values = ~Frecuencia,
+        textinfo = "percent",
+        type = "pie",
+        hole = 0.6,
+        marker = list(line = list(color = '#000', width = 0.3)))%>%
+  layout(title = list(text = "Distribucion de la Causa de los incendios que tuvieron Alerta roja",
+                      x = 0.03,
+                      y = 0.97),
+         showlegend = TRUE,
+         legend = list(x = 0.85, y = 0.5, font = list(size = 7)),
+         margin = list(l = 0.5, r = 0, b = -1, t = -1))
+
+pie.alerta.amarilla <- plot_ly(alerta.amarilla.causa.count,
+        labels = ~Causa, 
+        values = ~Frecuencia,
+        textinfo = "percent",
+        type = "pie",
+        hole = 0.6,
+        marker = list(line = list(color = '#000', width = 0.3)))%>%
+  layout(title = list(text = "Distribucion de la Causa de los incendios que tuvieron Alerta amarilla",
+                      x = 0.03,
+                      y = 0.97),
+         showlegend = TRUE,
+         legend = list(x = 0.85, y = 0.5, font = list(size = 7)),
+         margin = list(l = 0.5, r = 0, b = -1, t = -1))
+
+pie.sin.alerta <- plot_ly(sin.alerta.causa.count,
+        labels = ~Causa, 
+        values = ~Frecuencia,
+        textinfo = "percent",
+        type = "pie",
+        hole = 0.6,
+        marker = list(line = list(color = '#000', width = 0.3)))%>%
+  layout(title = list(text = "Distribucion de la Causa de los incendios que no tuvieron alerta",
+                      x = 0.03,
+                      y = 0.97),
+         showlegend = TRUE,
+         legend = list(x = 0.85, y = 0.5, font = list(size = 7)),
+         margin = list(l = 0.5, r = 0, b = -1, t = -1))
+
+```
+
+```{r}
+pie.alerta.roja
+```
+
+```{r}
+pie.alerta.amarilla
+```
+
+```{r}
+pie.sin.alerta
+```
+
+Tanto para el primer gráfico como para el segundo, los incendios siguen siendo provocados, principalmente, por el tránsito de personas, vehículos o aeronaves y de manera intencional, aunque, ahora el grupo predominante en ambos casos son los incendios causados por el tránsito de personas, vehículos o aeronaves. Además, en ambos casos se ve disminuida la cantidad de incendios que tienen una causa desconocida, pero esta disminución se encuentra principalmente en los incendios que se les estableció alerta roja. Por otra parte, a partir del tercer gráfico se puede afirmar que los incendios sin alerta, en su mayoría, son causados intencionalmente.
+
+### Distribución de los incendios a lo largo del país y en relación con la Temporada.
+
+Resulta interesante conocer cómo se distribuyen los incendios a lo largo del país, es decir, ver cuáles son las regiones que tienen más incendios. Podemos ver también cómo ha cambiado la cantidad de incendios a lo largo del tiempo. Por otro lado, es importante ver también la cantidad de superficie quemada por los incendios y cómo esta ha ido evolucionando con el tiempo.
+
+#### Cantidad de incendios por Temporada y Superficie Total Quemada
+
+A fin de estudiar la evolución de los incendios a lo largo de los años, se muestra a continuación un gráfico en el que se compara la cantidad de incendios por temporada y su relación con superficie quemada en la misma.
+
+Se crea el *data.frame* para hacer el gráfico.
+
+```{r}
+temporadas.unicas <- unique(data$Temporada)
+temporada.count <- data.frame(Temporada = character(0), Frecuencia = numeric(0), SuperficieQuemadaTotal = numeric(0))
+for (temporada in temporadas.unicas) {
+  data.temporada <- data[data$Temporada == temporada, ]
+  count.temporada <- nrow(data.temporada)
+  superficie.quemada.temporada <- sum(data.temporada$SuperficieQuemadaTotal)
+  temporada.count <- rbind(temporada.count, data.frame(Temporada = temporada, Frecuencia = count.temporada, SuperficieQuemadaTotal = superficie.quemada.temporada))
+}
+```
+
+**Superficie total quemada y cantidad de incendios por temporada**
+
+```{r}
+bar.chart.superficie.quemada <- plot_ly(data = temporada.count, x = ~Temporada, y = ~SuperficieQuemadaTotal, type = 'bar', name = 'Superficie total quemada (ha)', marker = list(color = 'orange'))
+
+scatter.chart.total.incendios <- plot_ly(data = temporada.count, x = ~Temporada, y = ~Frecuencia, type = 'scatter', mode = 'lines+markers', name = 'Total de incendios', yaxis = 'y2', marker = list(color = 'orange'))
+
+layout <- list(
+  xaxis = list(title = "Temporada"),
+  yaxis = list(title = "Superficie total quemada (ha)", side = 'left', showgrid = FALSE, range = c(0, 600000)),
+  yaxis2 = list(title = "Total de incendios", side = 'right', overlaying = "y", showgrid = FALSE),
+  showlegend = TRUE
+)
+
+subplot(bar.chart.superficie.quemada, scatter.chart.total.incendios, nrows = 2, shareX = TRUE, shareY = TRUE) %>% layout(layout)
+```
+
+Se puede notar que la cantidad de incendios no se corresponde a la superficie total quemada, de hecho, se puede notar como en la temporada *2016-2017* hubo un gran aumento en este sentido, correspondiente a la emergencia nacional producida en verano del 2017, pese a tal aumento, se puede ver una disminución en el total de incendios en esa temporada. Esto da cuenta que, si bien hubieron menos incendios en este periodo, su magnitud fue mucho mayor en relación a la superficie total quemada en otras temporadas, por lo que no existe una clara correlación entre estas variables.
+
+### Análisis de la Superficie Total Quemada por los incendios y su relación con otras variables
+
+#### Relación entre Superficie Total Quemada y Duración del incendio
+
+En el gráfico que se muestra a continuación se presenta la superficie quemada en hectáreas, en función de la duración en minutos para cada incendio.
+
+```{r, warning=FALSE}
+ggplot(data, aes(x = DuracionMinutos, y = SuperficieQuemadaTotal)) +
+  geom_point(size=0.2) +
+  labs(title = "Relación entre Superficie Quemada y Duración de Incendios",
+       x = "Duración (minutos)", y = "Superficie Quemada (ha)") +
+  ylim(0, 15000) + 
+  theme_minimal()
+```
+
+Dada la información que se logra extraer a partir del gráfico, parece no haber una clara relación entre la superficie quemada y la duración de los incendios. Se puede ver que, independiente de la duración del siniestro, se presentan *outliers* a lo largo de todo el eje X. Por otra parte, se evidencia una gran concentración de incendios con una duración menor a 500 minutos y por sobre los 1000 minutos, mas no una dependencia entre las variables.
+
+También se puede observar que hay registros de eventos de poca duración, que tienen una gran superficie quemada. Esto se debe tener en cuenta al momento de trabajar con estos datos.
+
+#### Superficie Total Quemada según los distintos escenarios
+
+A continuación se va a mostrar un gráfico que relaciona la superficie total quemada del incendio con los diferentes escenarios en los que se desarrollan.
+
+```{r}
+ggplot(data, aes(x = reorder(Escenario, desc(SuperficieQuemadaTotal), sum), y = SuperficieQuemadaTotal)) +
+  geom_bar(stat = "summary", fun = "sum", fill = "orange") +
+  labs(title = "Superficie Total Quemada por Escenario",
+       x = "Escenario", y = "Superficie Total Quemada (ha)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
+
+Los distintos escenarios son:
+
+-   **IFor-Pl:** Incendio Forestal de Plantaciones, cuando el fuego se propaga afectando principalmente plantaciones forestales, incluyendo también a desechos de manejo forestal como raleos y/o cosecha
+
+-   **IFor-Vn:** Incendio Forestal de Vegetación Natural, cuando se trate de incendio forestal que se desarrolla afectando vegetación natural representada por un bosque adulto, renovales, matorrales y también desechos de cosecha forestal de especies nativas.
+
+-   **FIUr-Fo:** Incendio Forestal Interfaz Urbano Forestal, corresponde a un incendio que se desarrolla principalmente en áreas con vegetación combustible en el entorno de viviendas y que, en su propagación amenaza y/o afecta a vegetación y a áreas pobladas, industriales o infraestructura productiva
+
+-   **IFCo:** Incendio Forestal Cordillerano, corresponde a un incendio que se desarrolla en un ambiente de cordillera por sobre los 1.000 m.s.n.m. que naturalmente presenta dificultades de acceso y desplazamiento terrestre. Normalmente afecta vegetación nativa arbórea, arbustiva o praderas andinas.
+
+-   **IFSu:** Incendio Forestal Subterráneo, corresponde a un incendio que, ya extinguido en su superficie, se propaga con una combustión incandescente por la materia orgánica acumulada bajo el suelo.
+
+-   **IFCSo:** Incendio Forestal Conflicto Social, corresponde a un incendio que se desarrolla en territorios específicos del país denominados zonas en conflicto social/territorial.
+
+-   **IFASP:** Incendio Forestal Área Silvestre Protegida, corresponde a un incendio que se propaga en un Área Silvestre Protegida del SNASPE
+
+-   **IFIns:** Incendio Forestal Insular, corresponde a un incendio que se desarrolla en islas o archipiélagos, no mayores, prácticamente deshabitados y donde el acceso es por vía marítima o aérea.
+
+A partir de esto es importante los principales escenarios. El primero es **Sin definir**, por lo cual no es posible comentar nada acerca de este tipo de escenario. Luego, le sigue el escenario **IFor-Pl**, el cual se trata de incendios forestales de quema de faenas forestales, siendo una gran actividad en la zona del Biobío y la Araucanía. Por otro lado están los incendios **IFor-Vn**, los cuales son incendios de vegetación natural, que afectan la fauna nativa del sector.
+
+#### Superficie Total Quemada según el mes
+
+```{r}
+# Crear un gráfico de barras para mostrar la Superficie Total Quemada por Mes
+ggplot(data, aes(x = reorder(Mes, desc(SuperficieQuemadaTotal), sum), y = SuperficieQuemadaTotal)) +
+  geom_bar(stat = "summary", fun = "sum", fill = "orange") +
+  labs(title = "Superficie Total Quemada por Mes",
+       x = "Mes", y = "Superficie Total Quemada (ha)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(labels = scales::comma)
+```
+
+De este gráfico es posible analizar los meses que más superficie total quemada tienen son los meses de la temporada de verano en Chile (Diciembre a Marzo), esto tiene sentido dado las altas temperaturas que se registran en nuestro país y las escasas lluvias.
+
+## Preguntas y Problemas
+
+Luego del análisis exploratorio, y de acuerdo a las motivaciones planteadas en un inicio surgen las siguientes preguntas y problemas:
+
+------------------------------------------------------------------------
+
+1.  ¿Es factible predecir la severidad de un incendio forestal en curso y determinar el nivel de alerta correspondiente basándose en sus características y factores actuales?
+
+------------------------------------------------------------------------
+
+2.  ¿Se pueden usar los registros existentes de incendios para identificar patrones y características predictivas que diferencien entre causas intencionales y no intencionales?
+
+------------------------------------------------------------------------
+
+3.  ¿Se pueden identificar grupos de incendios que compartan características similares, y estos grupos podrían proporcionarnos información valiosa para abordar eficazmente estas situaciones de emergencia?
+
+## Apéndice
+
+### Relación entre Duración de incendios y su Causa
+
+Con el objetivo de determinar qué relación existe entre la duración de un incendio y su causa, se expone a continuación un *boxplot* entre estas variables.
+
+```{r}
+ggplot(data, aes(x = Causa, y = DuracionMinutos)) +
+  geom_boxplot(fill = 'orange') +
+  labs(title = "Duración de Incendios por Causa",
+       x = "Causa", y = "Duración (minutos)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+Se puede ver que aquellas causas con una mediana de duración más alta son los incendios naturales, las faenas forestales y la confección y/o extracción de productos secundarios del bosque, las cuales también poseen los intervalo intercuartílico más grandes, lo que indica que existe una mayor dispersión en cuanto a la duración de los incendios para estas causas. Por otro lado, tanto las actividades recreativas como las últimas cinco causas del gráfico presentan una baja mediana con baja dispersión. Cabe destacar que, a diferencia del resto de causas, la duración de los incendios de las faenas forestales correspondientes al cuarto cuartil, se concentran entre 1250 y 1500 minutos.
+
+### Relación entre Superficie Total Quemada y la Causa del incendio
+
+Ahora se va a analizar la relación entre la superficie total quemada y la causa del incendio, con el propósito de comprender la relación entre la causa del evento y su magnitud.
+
+```{r}
+library(scales)
+
+# Crear un gráfico de barras para mostrar la Superficie Total Quemada por Causa
+ggplot(data, aes(x = reorder(Causa, desc(SuperficieQuemadaTotal), sum), y = SuperficieQuemadaTotal)) +
+  geom_bar(stat = "summary", fun = "sum", fill = "orange") +
+  labs(title = "Superficie Total Quemada según Causa",
+       x = "Causa", y = "Superficie Total Quemada (ha)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(labels = scales::comma)
+
+```
+
+De este gráfico se puede observar que los incendios forestales intencionales son aquellos con una mayor cantidad de superficie total quemada en hectáreas, esto se puede deber a diferentes factores. Luego, le siguen los incendios de causa desconocida.
+
+### Cantidad de incendios en cada Región
+
+Ahora se puede ver la cantidad de incendios que fueron registrados en cada región, para esto se van a mostrar los datos y también un gráfico de barras en el que se pueden ver la cantidad de incendios por región.
+
+```{r}
+# Crear la tabla de frecuencias
+region_table <- table(data$Region)
+
+# Formatear la tabla con kable y ajustes de formato
+library(knitr)
+kable(region_table, 
+      caption = "Frecuencias por Región",
+      col.names = c("Región", "Frecuencia"),
+      align = "c") 
+```
+
+Se crea un *dataframe* para colocar los datos y luego graficarlos.
+
+```{r}
+region.count <- as.data.frame(table(data$Region))
+colnames(region.count) <- c("Region", "Frecuencia")
+region.count <- region.count[order(-region.count$Frecuencia), ]
+head(region.count)
+```
+
+```{r}
+plot_ly(data = region.count, x = ~Region, y = ~Frecuencia, type = 'bar', marker = list(color = 'orange')) %>%
+  layout(
+    title = list(text = "Cantidad de incendios por Región", y = 0.96),
+    xaxis = list(
+      title = "Región",
+      tickvals = ~Region,
+      ticktext = ~Region,
+      tickangle = -45
+    ),
+    yaxis = list(title = "Frecuencia")
+  )
+```
+
+En lo anterior se puede apreciar que la región que presenta una mayor cantidad de incendios registrados es la región del Biobío, la cual presenta una cantidad mayor al doble de su antecesor, la región de la Araucanía. Por otro lado, las regiones de Coquimbo, Ñuble, Aysén, Magallanes, Atacama, Arica y Parinacota, Antofagasta y Tarapacá presentan una cantidad muy baja de incendios.
+
+Las regiones que parecen interesantes a estudiar son las regiones del Biobío y de la Araucania, ya que, estas son colindantes, son las dos con mayor cantidad de registros, además, ambas tienen una gran producción forestal y agrícola.
+
+Para entender de mejor manera la distribución geográfica de los datos, se presenta a continuación un mapa de calor que nos permite identificar aquellas zonas con mayor densidad de incendios, es decir, las zonas con una mayor cantidad de incendios por unidad de área.
+
+Se crea el *dataframe* con los atributos *Region*, *Temporada*, *Latitud* y *Longitud* de cada incendio:
+
+```{r}
+data.coords <- data.frame(Region=data$Region, Temporada=data$Temporada, Latitud=data$Latitud, Longitud=data$Longitud)
+```
+
+Se deben definir las zonas a graficar según las coordenadas geográficas.
+
+```{r}
+chile_bounds <- c(left = -80, bottom = -56, right = -65, top = -17)
+```
+
+```{r}
+heat.map <- function(df, map_bounds, zoom=7, type="toner-lite", title, xlab = xlab, ylab = ylab){
+  
+    coords.map <- get_stamenmap(map_bounds, zoom = zoom, maptype = type) 
+    
+    coords.map <- ggmap(coords.map, extent="device", legend="none")
+    
+    coords.map <- coords.map + stat_density_2d(data=df, aes(x=Longitud, y=Latitud, fill=after_stat(level), alpha=after_stat(level)), geom="polygon")
+    
+    coords.map <- coords.map + scale_fill_gradientn(colours=rev(brewer.pal(7, "Spectral")))
+    
+    coords.map <- coords.map + ggtitle(title) + xlab(xlab) + ylab(ylab) + theme_bw()
+
+    return(coords.map);
+}
+```
+
+Definimos las zonas de interés a graficar.
+
+```{r}
+valparaiso_bounds <- c(left = -72.3, bottom = -34.2, right = -69.8, top = -31.9)
+biobio_bounds <- c(left = -74, bottom = -39, right = -70.8, top = -36)
+```
+
+```{r}
+# print(heat.map(data.coords, zoom=4, chile_bounds, title="Densidad de Incendios en Chile", xlab="Longitud", ylab="Latitud"))
+```
+
+En particular, se puede notar que aquellas zonas donde más cantidad de incendios se producen son las regiones de Valparaíso, Biobío y Araucanía, lo cual se corresponde con lo mostrado en los gráficos anteriores.
+
+```{r, warning = FALSE}
+# print(heat.map(data.coords, zoom=8, valparaiso_bounds, title="Densidad de Incendios en Chile", xlab="Longitud", ylab="Latitud"))
+```
+
+```{r, warning = FALSE}
+# print(heat.map(data.coords, zoom=8, biobio_bounds, title="Densidad de Incendios en Chile", xlab="Longitud", ylab="Latitud"))
+```
+
+Al acercarse a estas regiones se puede ver con mayor claridad los lugares donde se han registrado la mayor cantidad de incendios. Para el caso de la región de Valparaíso, se evidencia una densidad de estos siniestros entre las ciudades de Valparaíso y Viña del Mar, concentrándose en los cerros que las rodean. Por otro lado, al sur del país, en las regiones del Biobío y la Araucanía, los incendios se concentran en los pueblos de Curanilahue, Tomé y Collipulli, las cuales son zonas de alta producción forestal.
+
+## Aportes específicos de cada miembro Hito 1
+
+Todos los integrantes participaron de las siguientes secciones:
+
+Introducción y motivación, Preliminares, Preguntas y problemas y Análisis general.
+
+-   **David Felipe:** Frecuencia de las Alerta establecidas en los incendios, Relación entre superficie quemada y duración del incendio, Relación entre Superficie total quemada y la Causa del incendio.
+
+-   **Cristian Jara:** Frecuencia de las Causas de los incendios, Presentación y Duración de los incendios según el tipo de alerta.
+
+-   **Alfredo Padilla:** Duración de los incendios según el tipo de alerta, Cantidad de incendios por temporada y superficie quemada y Superficie total quemada según distintos escenarios.
+
+-   **Gonzalo Serradilla:** Correlación entre variable, Presentación y Relación entre superficie total quemada y Causa del incendio.
+
+-   **Pablo Vergara:** Cantidad de incendios en cada región, Relación entre duración de incendios y su Causa y Superficie total quemada según el mes.

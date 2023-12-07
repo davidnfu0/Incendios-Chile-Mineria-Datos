@@ -34,7 +34,7 @@ Los datos fueron obtenidos del sitio web: `www.plataformadedatos.cl`. Es una pla
 
 ___
 
-### Preguntas de Investigación
+## Preguntas de Investigación
 
 ___
 1. ¿Es factible predecir la severidad de un incendio forestal en curso y determinar el nivel de alerta correspondiente basándose en sus características y factores actuales?
